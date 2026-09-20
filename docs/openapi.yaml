@@ -1,0 +1,232 @@
+openapi: 3.1.0
+info:
+  title: API de Gerenciamento de Pedidos
+  version: 1.0.0
+  description: API REST do teste tecnico Jitterbit, com persistencia PostgreSQL e autenticacao JWT.
+servers:
+  - url: http://localhost:3000
+tags:
+  - name: Autenticacao
+  - name: Pedidos
+  - name: Operacao
+paths:
+  /health:
+    get:
+      tags: [Operacao]
+      summary: Verifica a aplicacao e o banco de dados
+      responses:
+        '200':
+          description: Servicos disponiveis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  database: { type: string, example: ok }
+        '503':
+          description: Banco de dados indisponivel
+  /auth/login:
+    post:
+      tags: [Autenticacao]
+      summary: Autentica um usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+      responses:
+        '200':
+          description: Token criado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, tipo, expiraEm]
+                properties:
+                  token: { type: string }
+                  tipo: { type: string, example: Bearer }
+                  expiraEm: { type: string, example: 1h }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Limite de tentativas excedido }
+  /order:
+    post:
+      tags: [Pedidos]
+      security: [{ bearerAuth: [] }]
+      summary: Cria um pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncomingOrder'
+      responses:
+        '201':
+          description: Pedido criado
+          headers:
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /order/list:
+    get:
+      tags: [Pedidos]
+      security: [{ bearerAuth: [] }]
+      summary: Lista todos os pedidos
+      responses:
+        '200':
+          description: Lista de pedidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /order/{orderId}:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+    get:
+      tags: [Pedidos]
+      security: [{ bearerAuth: [] }]
+      summary: Consulta um pedido
+      responses:
+        '200':
+          description: Pedido encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Pedidos]
+      security: [{ bearerAuth: [] }]
+      summary: Substitui um pedido
+      description: numeroPedido no corpo deve ser igual ao orderId da URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncomingOrder' }
+      responses:
+        '200':
+          description: Pedido atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Pedidos]
+      security: [{ bearerAuth: [] }]
+      summary: Exclui um pedido e seus itens
+      responses:
+        '204': { description: Pedido excluido }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]+$'
+      example: v10089015vdb-01
+  schemas:
+    Login:
+      type: object
+      additionalProperties: false
+      required: [usuario, senha]
+      properties:
+        usuario: { type: string, example: admin }
+        senha: { type: string, format: password, example: uma-senha-forte }
+    IncomingOrder:
+      type: object
+      additionalProperties: false
+      required: [numeroPedido, valorTotal, dataCriacao, items]
+      properties:
+        numeroPedido: { type: string, example: v10089015vdb-01 }
+        valorTotal: { type: number, minimum: 0, example: 10000 }
+        dataCriacao:
+          type: string
+          format: date-time
+          example: '2023-07-19T12:24:11.5299601+00:00'
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [idItem, quantidadeItem, valorItem]
+            properties:
+              idItem: { type: string, pattern: '^\d+$', example: '2434' }
+              quantidadeItem: { type: integer, minimum: 1, example: 1 }
+              valorItem: { type: number, minimum: 0, example: 1000 }
+    Order:
+      type: object
+      required: [orderId, value, creationDate, items]
+      properties:
+        orderId: { type: string, example: v10089015vdb-01 }
+        value: { type: number, example: 10000 }
+        creationDate: { type: string, format: date-time, example: '2023-07-19T12:24:11.529Z' }
+        items:
+          type: array
+          items:
+            type: object
+            required: [productId, quantity, price]
+            properties:
+              productId: { type: integer, example: 2434 }
+              quantity: { type: integer, example: 1 }
+              price: { type: number, example: 1000 }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: { type: string, example: ORDER_NOT_FOUND }
+            message: { type: string, example: Pedido nao encontrado. }
+            requestId: { type: string, format: uuid }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  campo: { type: string }
+                  mensagem: { type: string }
+  responses:
+    Unauthorized:
+      description: Token ausente, invalido ou credenciais incorretas
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Pedido nao encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Numero de pedido duplicado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Dados invalidos
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

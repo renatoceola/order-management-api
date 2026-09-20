@@ -1,0 +1,96 @@
+{
+  "info": {
+    "name": "Order Management API",
+    "description": "Colecao do teste tecnico com captura automatica do JWT.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "usuario", "value": "admin" },
+    { "key": "senha", "value": "" },
+    { "key": "token", "value": "" },
+    { "key": "orderId", "value": "v10089015vdb-01" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Autenticacao",
+      "item": [
+        {
+          "name": "Login",
+          "auth": { "type": "noauth" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login realizado', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('token', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario\": \"{{usuario}}\",\n  \"senha\": \"{{senha}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pedidos",
+      "item": [
+        {
+          "name": "Criar pedido",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroPedido\": \"{{orderId}}\",\n  \"valorTotal\": 10000,\n  \"dataCriacao\": \"2023-07-19T12:24:11.5299601+00:00\",\n  \"items\": [{\n    \"idItem\": \"2434\",\n    \"quantidadeItem\": 1,\n    \"valorItem\": 1000\n  }]\n}"
+            },
+            "url": "{{baseUrl}}/order"
+          }
+        },
+        {
+          "name": "Listar pedidos",
+          "request": { "method": "GET", "url": "{{baseUrl}}/order/list" }
+        },
+        {
+          "name": "Consultar pedido",
+          "request": { "method": "GET", "url": "{{baseUrl}}/order/{{orderId}}" }
+        },
+        {
+          "name": "Atualizar pedido",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroPedido\": \"{{orderId}}\",\n  \"valorTotal\": 12000,\n  \"dataCriacao\": \"2023-07-19T12:24:11.5299601+00:00\",\n  \"items\": [{\n    \"idItem\": \"2434\",\n    \"quantidadeItem\": 2,\n    \"valorItem\": 1000\n  }]\n}"
+            },
+            "url": "{{baseUrl}}/order/{{orderId}}"
+          }
+        },
+        {
+          "name": "Excluir pedido",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/order/{{orderId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Saude",
+      "auth": { "type": "noauth" },
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    }
+  ]
+}
